@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Reading Nuggets — card maker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,500&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+  :root{
+    --paper:#F6F2E6;
+    --panel:#FFFFFF;
+    --ink:#221E16;
+    --muted:#807C67;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:#F6F2E6;
+    color:#221E16;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  @media (prefers-reduced-motion: reduce){
+    *{transition:none !important; animation:none !important;}
+  }
+  .wrap{max-width:1160px;margin:0 auto;padding:40px 24px 80px;}
+  .eyebrow{
+    font-family:"Space Mono",monospace;
+    font-size:12px;
+    letter-spacing:.14em;
+    text-transform:uppercase;
+    color:#9A3324;
+    margin:0 0 6px;
+  }
+  h1{
+    font-family:"Fraunces",serif;
+    font-weight:600;
+    font-size:32px;
+    margin:0 0 28px;
+    letter-spacing:-0.01em;
+  }
+  .stats{
+    display:flex;
+    flex-wrap:wrap;
+    gap:10px;
+    margin-bottom:28px;
+  }
+  .stat{
+    background:var(--panel);
+    border:1px solid #E3DBC5;
+    border-radius:10px;
+    padding:10px 16px;
+    font-family:"Space Mono",monospace;
+  }
+  .stat .n{font-size:20px;font-weight:700;line-height:1;}
+  .stat .l{font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8A8271;margin-top:4px;}
+  .recent{font-size:12px;color:#8A8271;font-family:"Space Mono",monospace;}
+  .grid{
+    display:grid;
+    grid-template-columns:380px 1fr;
+    gap:36px;
+    align-items:start;
+  }
+  @media (max-width:820px){
+    .grid{grid-template-columns:1fr;}
+  }
+  .field{margin-bottom:16px;}
+  .field label{
+    display:block;
+    font-size:12px;
+    font-weight:600;
+    letter-spacing:.03em;
+    color:#4A4638;
+    margin-bottom:6px;
+  }
+  .field input, .field textarea{
+    width:100%;
+    border:1px solid #DDD4BC;
+    background:#FFFFFF;
+    border-radius:8px;
+    padding:10px 12px;
+    font-size:14px;
+    font-family:inherit;
+    color:#221E16;
+  }
+  .field textarea{resize:vertical;min-height:88px;line-height:1.5;}
+  .field input:focus-visible, .field textarea:focus-visible, button:focus-visible{
+    outline:2px solid #9A3324;
+    outline-offset:1px;
+  }
+  .err{color:#B23A2E;font-size:12px;margin-top:4px;display:none;}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+  .swatches{display:flex;gap:8px;margin-top:2px;}
+  .swatch{
+    width:30px;height:30px;border-radius:50%;
+    border:2px solid transparent;
+    cursor:pointer;
+    padding:0;
+  }
+  .swatch[aria-pressed="true"]{border-color:#221E16;}
+  .startnum{display:flex;align-items:center;gap:8px;margin-top:18px;}
+  .startnum input{width:70px;}
+  .startnum span{font-size:12px;color:#8A8271;}
+  .actions{display:flex;gap:10px;margin-top:20px;flex-wrap:wrap;}
+  button{
+    font-family:inherit;
+    font-size:14px;
+    font-weight:600;
+    border-radius:8px;
+    padding:11px 18px;
+    cursor:pointer;
+    border:1px solid transparent;
+  }
+  .primary{background:#221E16;color:#F6F2E6;}
+  .primary:hover{background:#3A342A;}
+  .ghost{background:transparent;border-color:#DDD4BC;color:#221E16;}
+  .ghost:hover{background:#FFFFFF;}
+  .stage{
+    width:100%;
+    max-width:480px;
+    aspect-ratio:1/1;
+    overflow:hidden;
+    position:relative;
+    margin:0 auto 18px;
+    border-radius:6px;
+    box-shadow:0 1px 3px rgba(0,0,0,.15), 0 8px 24px rgba(0,0,0,.08);
+  }
+  .card{
+    width:1080px;
+    height:1080px;
+    position:absolute;
+    top:0;left:0;
+    transform-origin:top left;
+    display:flex;
+    flex-direction:column;
+    font-family:"Fraunces",serif;
+    padding:64px;
+  }
+  .panel{
+    flex:1;
+    display:flex;
+    flex-direction:column;
+    background:var(--panel-bg,#EFE7D3);
+    color:var(--ink,#211D14);
+    border-radius:22px;
+    padding:64px 64px 36px;
+    box-shadow:0 24px 60px rgba(0,0,0,.28);
+  }
+  .cardtop{
+    display:flex;
+    justify-content:space-between;
+    align-items:baseline;
+    font-family:"Space Mono",monospace;
+    font-size:20px;
+    letter-spacing:.06em;
+  }
+  .cardtop .no{color:var(--accent,#9A3324);font-weight:700;}
+  .cardtop .date{color:var(--ink-muted,rgba(33,29,20,.5));}
+  .rule{height:1px;background:var(--ink-muted,rgba(33,29,20,.28));margin:22px 0 0;opacity:.5;}
+  .quoteblock{
+    flex:1;
+    display:flex;
+    align-items:center;
+    padding:36px 0;
+  }
+  .quoteinner{
+    border-left:6px solid var(--accent,#9A3324);
+    padding-left:40px;
+    position:relative;
+  }
+  .qmark{
+    font-family:"Fraunces",serif;
+    font-weight:600;
+    font-size:120px;
+    line-height:1;
+    color:var(--accent,#9A3324);
+    opacity:.9;
+    margin:0 0 -10px;
+  }
+  .qtext{
+    font-style:italic;
+    font-weight:500;
+    line-height:1.32;
+    margin:0;
+    word-break:break-word;
+    color:var(--ink,#211D14);
+  }
+  .attribution{margin-top:30px;}
+  .authorline{font-size:30px;font-style:italic;color:var(--ink,#211D14);}
+  .bookline{
+    font-family:"Space Mono",monospace;
+    font-size:18px;
+    letter-spacing:.05em;
+    text-transform:uppercase;
+    color:var(--accent,#9A3324);
+    margin-top:8px;
+  }
+  .cardfoot{
+    font-family:"Space Mono",monospace;
+    font-size:14px;
+    letter-spacing:.1em;
+    text-transform:uppercase;
+    color:var(--ink-muted,rgba(33,29,20,.45));
+    padding-top:22px;
+  }
+  .moodrow{display:flex;align-items:center;gap:10px;margin-bottom:10px;}
+  .autopill{
+    font-family:inherit;font-size:12px;font-weight:600;
+    padding:7px 14px;border-radius:999px;
+    border:1px solid #DDD4BC;background:#FFFFFF;color:#221E16;cursor:pointer;
+  }
+  .autopill[aria-pressed="true"]{background:#221E16;color:#F6F2E6;border-color:#221E16;}
+  .moodswatches{display:flex;gap:8px;flex-wrap:wrap;}
+  .moodswatches button{
+    width:30px;height:30px;border-radius:50%;
+    border:2px solid transparent;padding:0;cursor:pointer;
+  }
+  .moodswatches button[aria-pressed="true"]{border-color:#221E16;}
+  .captionwrap{margin-top:34px;}
+  .captionwrap label{font-size:12px;font-weight:600;color:#4A4638;display:block;margin-bottom:6px;}
+  .captionwrap textarea{
+    width:100%;
+    min-height:150px;
+    border:1px solid #DDD4BC;
+    border-radius:8px;
+    padding:14px;
+    font-family:"Space Mono",monospace;
+    font-size:12.5px;
+    line-height:1.6;
+    background:#FFFFFF;
+    color:#221E16;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <p class="eyebrow">reading nuggets</p>
+  <h1>Bring the nugget. This does the rest.</h1>
+
+  <div class="stats">
+    <div class="stat"><div class="n" id="statNext">No. 001</div><div class="l">up next</div></div>
+    <div class="stat"><div class="n" id="statStreak">0 days</div><div class="l">streak</div></div>
+    <div class="stat"><div class="n" id="statTotal">0</div><div class="l">total filed</div></div>
+    <div class="stat"><div class="n" id="statLast">—</div><div class="l">last logged</div></div>
+  </div>
+
+  <div class="grid">
+    <div>
+      <div class="field">
+        <label for="quote">The nugget</label>
+        <textarea id="quote" placeholder="Paste the line that stopped you." maxlength="420"></textarea>
+        <div class="err" id="errQuote">Add the quote before saving.</div>
+      </div>
+      <div class="row2">
+        <div class="field">
+          <label for="title">Book title</label>
+          <input id="title" placeholder="Atomic Habits">
+        </div>
+        <div class="field">
+          <label for="author">Author</label>
+          <input id="author" placeholder="James Clear">
+        </div>
+      </div>
+      <div class="row2">
+        <div class="field">
+          <label for="page">Page (optional)</label>
+          <input id="page" placeholder="142">
+        </div>
+        <div class="field">
+          <label>Background mood</label>
+          <div class="moodrow">
+            <button type="button" class="autopill" id="autoPill" aria-pressed="true">Auto-match</button>
+          </div>
+          <div class="moodswatches" id="moodswatches"></div>
+        </div>
+      </div>
+      <div class="field">
+        <label for="take">Your takeaway (goes in the caption, not the card)</label>
+        <textarea id="take" placeholder="Why this line stuck with you." maxlength="400" style="min-height:64px;"></textarea>
+      </div>
+
+      <div class="startnum">
+        <label for="offset">Catalog starts at</label>
+        <input type="number" id="offset" min="0" value="0">
+        <span>only matters if you've already posted some</span>
+      </div>
+
+      <div class="actions">
+        <button class="primary" id="btnSave">Save &amp; download card</button>
+        <button class="ghost" id="btnClear">Clear form</button>
+      </div>
+
+      <div class="captionwrap">
+        <label for="caption">Caption (auto-written, edit freely)</label>
+        <textarea id="caption" readonly></textarea>
+        <div class="actions">
+          <button class="ghost" id="btnCopy">Copy caption</button>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="stage" id="stage">
+        <div class="card" id="card">
+          <div class="panel">
+            <div class="cardtop">
+              <span class="no" id="cardNo">NO. 001</span>
+              <span class="date" id="cardDate">21 AUG 2026</span>
+            </div>
+            <div class="rule"></div>
+            <div class="quoteblock">
+              <div class="quoteinner">
+                <p class="qmark">"</p>
+                <p class="qtext" id="cardQuote">Paste your nugget on the left — it shows up here.</p>
+              </div>
+            </div>
+            <div class="attribution">
+              <p class="authorline" id="cardAuthor">— your author</p>
+              <p class="bookline" id="cardBook">your book title</p>
+            </div>
+            <div class="cardfoot" id="cardFoot">reading nuggets</div>
+          </div>
+        </div>
+      </div>
+      <p class="recent" id="recentList" style="text-align:center;"></p>
+    </div>
+  </div>
+</div>
+
+<script>
+const STORE_KEY = 'reading-nuggets-log';
+let state = { count:0, offset:0, dates:[], entries:[], mood:'dawn', moodMode:'auto' };
+
+const MOODS = {
+  dawn:{ name:'Dawn', bg:'radial-gradient(120% 120% at 20% 15%, #FBE0BE 0%, #F5B378 45%, #E9895A 100%)', panel:'#FFF8EE', ink:'#3A2A1D', inkMuted:'#8A6F5A', accent:'#B4502A',
+    keywords:['love','heart','warm','joy','hope','light','morning','sun','bright','gentle','kind','happy','smile','grateful'] },
+  midnight:{ name:'Midnight', bg:'radial-gradient(120% 120% at 80% 20%, #2B3560 0%, #182142 55%, #0B0F1F 100%)', panel:'#171B2E', ink:'#EDE7D8', inkMuted:'#9C97A8', accent:'#C9A85C',
+    keywords:['night','dark','silence','quiet','alone','dream','stars','sleep','grief','loss','death','fear','shadow','lonely'] },
+  forest:{ name:'Forest', bg:'radial-gradient(120% 120% at 25% 80%, #7C8F5A 0%, #4C5D36 55%, #2B3520 100%)', panel:'#F4F1E3', ink:'#232819', inkMuted:'#6F7A5B', accent:'#4B5D3A',
+    keywords:['grow','growth','nature','roots','tree','seed','earth','patience','change','season','wild','forest','plant'] },
+  ember:{ name:'Ember', bg:'radial-gradient(120% 120% at 75% 75%, #D9713F 0%, #A5391D 55%, #611F10 100%)', panel:'#FBEFE2', ink:'#2B160C', inkMuted:'#8C6650', accent:'#9A3324',
+    keywords:['fire','passion','courage','fight','strength','power','bold','brave','burn','risk','war','battle'] },
+  blush:{ name:'Blush', bg:'radial-gradient(120% 120% at 30% 20%, #F1D3D9 0%, #DE9FAE 55%, #B8677C 100%)', panel:'#FBF2F2', ink:'#3B2530', inkMuted:'#8C6E78', accent:'#8C4B62',
+    keywords:['soft','gentle','tender','calm','peace','heal','care','slow','rest','vulnerable'] },
+  ink:{ name:'Ink', bg:'radial-gradient(120% 120% at 50% 30%, #34363B 0%, #202226 55%, #121315 100%)', panel:'#1B1C1E', ink:'#EDEAE0', inkMuted:'#96938A', accent:'#C9A227',
+    keywords:['truth','work','discipline','focus','mind','thought','reality','philosophy','purpose','habit','system'] }
+};
+const MOOD_ORDER = ['dawn','midnight','forest','ember','blush','ink'];
+
+function detectMood(text){
+  const t = (text||'').toLowerCase();
+  if(!t.trim()) return 'dawn';
+  let best = 'dawn', bestScore = 0;
+  for(const id of MOOD_ORDER){
+    let score = 0;
+    for(const kw of MOODS[id].keywords){ if(t.includes(kw)) score++; }
+    if(score > bestScore){ bestScore = score; best = id; }
+  }
+  return bestScore > 0 ? best : 'dawn';
+}
+
+function applyMood(id){
+  const m = MOODS[id] || MOODS.dawn;
+  const card = document.getElementById('card');
+  card.style.setProperty('--panel-bg', m.panel);
+  card.style.setProperty('--ink', m.ink);
+  card.style.setProperty('--ink-muted', m.inkMuted);
+  card.style.setProperty('--accent', m.accent);
+  card.style.background = m.bg;
+  document.querySelectorAll('#moodswatches button').forEach(b=>{
+    b.setAttribute('aria-pressed', b.dataset.mood === id ? 'true' : 'false');
+  });
+}
+
+function buildMoodSwatches(){
+  const wrap = document.getElementById('moodswatches');
+  MOOD_ORDER.forEach(id=>{
+    const m = MOODS[id];
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.dataset.mood = id;
+    btn.style.background = m.bg;
+    btn.setAttribute('aria-pressed','false');
+    btn.setAttribute('aria-label', m.name);
+    btn.title = m.name;
+    btn.addEventListener('click', ()=>{
+      state.moodMode = 'manual';
+      state.mood = id;
+      document.getElementById('autoPill').setAttribute('aria-pressed','false');
+      renderCard();
+    });
+    wrap.appendChild(btn);
+  });
+}
+document.getElementById('autoPill').addEventListener('click', ()=>{
+  state.moodMode = 'auto';
+  document.getElementById('autoPill').setAttribute('aria-pressed','true');
+  renderCard();
+});
+
+function pad(n){ return String(n).padStart(3,'0'); }
+function slug(t){ return (t||'').toLowerCase().replace(/[^a-z0-9]/g,''); }
+function todayStr(){
+  const d = new Date();
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+function parseYMD(s){
+  const [y,m,d] = s.split('-').map(Number);
+  return new Date(y, m-1, d);
+}
+function computeStreak(dates){
+  const uniq = [...new Set(dates)].sort().reverse();
+  if(!uniq.length) return 0;
+  const today = new Date(); today.setHours(0,0,0,0);
+  const mostRecent = parseYMD(uniq[0]);
+  const diffDays = Math.round((today - mostRecent)/86400000);
+  if(diffDays > 1) return 0;
+  let expected = mostRecent;
+  let streak = 0;
+  for(const s of uniq){
+    const d = parseYMD(s);
+    if(d.getTime() === expected.getTime()){
+      streak++;
+      expected = new Date(expected.getFullYear(), expected.getMonth(), expected.getDate()-1);
+    } else break;
+  }
+  return streak;
+}
+function fmtDisplayDate(ymd){
+  const d = parseYMD(ymd);
+  return d.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}).toUpperCase();
+}
+
+function hasClaudeStorage(){
+  return typeof window !== 'undefined' && !!window.storage && typeof window.storage.get === 'function';
+}
+async function loadState(){
+  try{
+    if(hasClaudeStorage()){
+      const res = await window.storage.get(STORE_KEY, false);
+      if(res && res.value) state = Object.assign(state, JSON.parse(res.value));
+    } else {
+      const raw = localStorage.getItem(STORE_KEY);
+      if(raw) state = Object.assign(state, JSON.parse(raw));
+    }
+  }catch(e){ /* first run, no saved log yet */ }
+  renderStats();
+}
+async function saveState(){
+  try{
+    if(hasClaudeStorage()){
+      await window.storage.set(STORE_KEY, JSON.stringify(state), false);
+    } else {
+      localStorage.setItem(STORE_KEY, JSON.stringify(state));
+    }
+  }catch(e){ console.error('Could not save log', e); }
+}
+
+function renderStats(){
+  const next = state.offset + state.count + 1;
+  document.getElementById('statNext').textContent = 'No. ' + pad(next);
+  document.getElementById('statStreak').textContent = computeStreak(state.dates) + (computeStreak(state.dates)===1 ? ' day' : ' days');
+  document.getElementById('statTotal').textContent = state.count;
+  document.getElementById('statLast').textContent = state.dates.length ? fmtDisplayDate(state.dates[state.dates.length-1]) : '—';
+  document.getElementById('offset').value = state.offset;
+  const recent = state.entries.slice(-5).reverse().map(e => e.title).join(' · ');
+  document.getElementById('recentList').textContent = recent ? 'recently filed: ' + recent : '';
+}
+
+function fitQuoteSize(len){
+  if(len <= 50) return 78;
+  if(len <= 90) return 62;
+  if(len <= 140) return 50;
+  if(len <= 200) return 42;
+  if(len <= 300) return 34;
+  return 28;
+}
+
+function currentInputs(){
+  return {
+    quote: document.getElementById('quote').value.trim(),
+    title: document.getElementById('title').value.trim(),
+    author: document.getElementById('author').value.trim(),
+    page: document.getElementById('page').value.trim(),
+    take: document.getElementById('take').value.trim(),
+  };
+}
+
+function renderCard(){
+  const s = currentInputs();
+  const next = state.offset + state.count + 1;
+  document.getElementById('cardNo').textContent = 'NO. ' + pad(next);
+  document.getElementById('cardDate').textContent = fmtDisplayDate(todayStr());
+  const qEl = document.getElementById('cardQuote');
+  qEl.textContent = s.quote || 'Paste your nugget on the left — it shows up here.';
+  qEl.style.fontSize = fitQuoteSize((s.quote||'').length) + 'px';
+  document.getElementById('cardAuthor').textContent = '— ' + (s.author || 'your author');
+  document.getElementById('cardBook').textContent = s.title ? (s.title + (s.page ? ', p. ' + s.page : '')) : 'your book title';
+  if(state.moodMode === 'auto'){ state.mood = detectMood(s.quote); }
+  applyMood(state.mood);
+  renderCaption(s, next);
+  fitStage();
+}
+
+function renderCaption(s, next){
+  const parts = [];
+  parts.push('\ud83d\udcd6 Nugget No. ' + pad(next) + ' \u2014 from \u201c' + (s.title||'this book') + '\u201d by ' + (s.author||'unknown'));
+  parts.push('');
+  parts.push('"' + (s.quote || '') + '"');
+  if(s.take){ parts.push(''); parts.push(s.take); }
+  parts.push('');
+  parts.push('Filed away for later \u2014 what are you reading this week?');
+  parts.push('');
+  const tags = ['#bookquotes','#readingnotes','#bookstagram','#currentlyreading'];
+  if(s.title) tags.push('#'+slug(s.title));
+  if(s.author) tags.push('#'+slug(s.author.split(' ').slice(-1)[0]));
+  parts.push(tags.join(' '));
+  document.getElementById('caption').value = parts.join('\n');
+}
+
+function fitStage(){
+  const stage = document.getElementById('stage');
+  const card = document.getElementById('card');
+  const scale = stage.clientWidth / 1080;
+  card.style.transform = 'scale(' + scale + ')';
+}
+
+['quote','title','author','page','take'].forEach(id=>{
+  document.getElementById(id).addEventListener('input', ()=>{
+    document.getElementById('errQuote').style.display = 'none';
+    renderCard();
+  });
+});
+
+document.getElementById('offset').addEventListener('change', (e)=>{
+  state.offset = parseInt(e.target.value || '0', 10) || 0;
+  saveState();
+  renderStats();
+  renderCard();
+});
+
+document.getElementById('btnClear').addEventListener('click', ()=>{
+  ['quote','title','author','page','take'].forEach(id=> document.getElementById(id).value = '');
+  renderCard();
+});
+
+document.getElementById('btnCopy').addEventListener('click', async ()=>{
+  const ta = document.getElementById('caption');
+  ta.select();
+  try{
+    await navigator.clipboard.writeText(ta.value);
+    const btn = document.getElementById('btnCopy');
+    const original = btn.textContent;
+    btn.textContent = 'Copied';
+    setTimeout(()=> btn.textContent = original, 1400);
+  }catch(e){
+    document.execCommand('copy');
+  }
+});
+
+document.getElementById('btnSave').addEventListener('click', async ()=>{
+  const s = currentInputs();
+  if(!s.quote){
+    document.getElementById('errQuote').style.display = 'block';
+    return;
+  }
+  const card = document.getElementById('card');
+  const prevTransform = card.style.transform;
+  const prevPos = card.style.position, prevLeft = card.style.left, prevTop = card.style.top;
+  card.style.transform = 'none';
+  card.style.position = 'fixed';
+  card.style.left = '-2000px';
+  card.style.top = '0';
+
+  await (document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve());
+
+  try{
+    const canvas = await html2canvas(card, { backgroundColor: null, width: 1080, height: 1080, scale: 1 });
+    const link = document.createElement('a');
+    const num = state.offset + state.count + 1;
+    link.download = 'nugget-' + pad(num) + (s.title ? '-' + slug(s.title) : '') + '.png';
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+  }catch(err){
+    console.error('Export failed', err);
+  }
+
+  card.style.transform = prevTransform;
+  card.style.position = prevPos;
+  card.style.left = prevLeft;
+  card.style.top = prevTop;
+
+  state.count += 1;
+  state.dates.push(todayStr());
+  state.entries.push({ date: todayStr(), title: s.title, author: s.author });
+  if(state.entries.length > 60) state.entries = state.entries.slice(-60);
+  await saveState();
+  renderStats();
+  renderCard();
+});
+
+window.addEventListener('resize', fitStage);
+
+buildMoodSwatches();
+loadState().then(()=>{ renderCard(); });
+</script>
+</body>
+</html>
